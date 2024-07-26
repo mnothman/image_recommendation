@@ -18,6 +18,9 @@ run:
 	@echo "Running Docker container..."
 	docker run -d --name $(DOCKER_CONTAINER_NAME) -p $(DOCKER_PORT):5000 $(DOCKER_IMAGE_NAME)
 
+#docker run -p 5000:5000 image_recommendation
+
+
 # Stop the Docker container
 .PHONY: stop
 stop:

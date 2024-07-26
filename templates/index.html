@@ -8,7 +8,7 @@
     <div id="gallery">
         {% for image in images %}
             <div class="image">
-                <img src="{{ image.url }}" alt="{{ image.id }}" 
+                <img src="{{ image.filepath }}" alt="{{ image.id }}" 
                      onclick="recordInteraction('{{ image.id }}', 'click')"
                      onmouseover="recordInteraction('{{ image.id }}', 'hover')"
                      onmouseout="recordInteraction('{{ image.id }}', 'hover_end')">

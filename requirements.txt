@@ -1,4 +1,4 @@
 Flask
 pandas
 tensorflow
-tensorflow-datasets
+fiftyone

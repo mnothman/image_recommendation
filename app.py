@@ -1,30 +1,36 @@
 from flask import Flask, render_template, request, jsonify
-import pandas as pd
+import fiftyone as fo
+import fiftyone.zoo as foz
 import time
-import tensorflow as tf
-import tensorflow_datasets as tfds
-import base64
-
-# print(tfds.list_builders())
-
+import os
 
 app = Flask(__name__)
 
-# dataset = tfds.load('open_images/v7', split='train')
-dataset = tfds.load('open_images_v4', split='validation')
-
+# Load a smaller split of the Open Images dataset v7 using FiftyOne
+dataset = foz.load_zoo_dataset(
+    "open-images-v7",
+    split="validation",
+    max_samples=20,  # Limit to 20 images for testing
+)
 images = []
 
-for datum in dataset.take(20): #limit to 20 images for now
-    image = datum["image"].numpy()
-    _, buffer = tf.image.encode_jpeg(image).numpy()
-    image_url = base64.b64encode(buffer).decode('utf-8')
+
+
+# Prepare images for rendering
+for sample in dataset:
+    # Check if 'ground_truth' exists and contains detections
+    image_path = sample.filepath
+    if hasattr(sample, 'ground_truth') and sample.ground_truth.detections:
+        label = sample.ground_truth.detections[0].label
+    else:
+        label = "No Label"
     images.append({
-        'url': f'data:image/jpeg;base64,{image_url}',
-        'id': datum["image/id"].numpy().decode('utf-8'),
-        'label': datum["objects"]["label"].numpy().tolist()
+        "id": sample.id,
+        "filepath": image_path,
+        "label": label
     })
-    print(f'Loaded image {datum["image/id"].numpy().decode("utf-8")}')
+
+    print(f"Sample ID: {sample.id}, Label: {label}")
 
 user_interactions = []
 
