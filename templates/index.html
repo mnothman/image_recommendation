@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image Recommendation</title>
+</head>
+<body>
+    <h1>Image Gallery</h1>
+    <div id="gallery">
+        {% for image in images %}
+            <div class="image">
+                <img src="{{ image.image_url }}" alt="{{ image.tags }}" 
+                     onclick="recordInteraction('{{ image.image_id }}', 'click')"
+                     onmouseover="recordInteraction('{{ image.image_id }}', 'hover')"
+                     onmouseout="recordInteraction('{{ image.image_id }}', 'hover_end')">
+                <p>{{ image.tags }}</p>
+            </div>
+        {% endfor %}
+    </div>
+    
+    <script>
+        let hoverStart = {};
+
+        function recordInteraction(imageId, action) {
+            let interaction = {image_id: imageId, action: action};
+
+            if (action === 'hover') {
+                hoverStart[imageId] = new Date().getTime();
+            } else if (action === 'hover_end') {
+                interaction['hover_time'] = new Date().getTime() - hoverStart[imageId];
+                delete hoverStart[imageId];
+            }
+
+            fetch('/interact', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(interaction),
+            }).then(response => response.json())
+              .then(data => console.log(data));
+        }
+    </script>
+</body>
+</html>
