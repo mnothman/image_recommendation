@@ -8,11 +8,11 @@
     <div id="gallery">
         {% for image in images %}
             <div class="image">
-                <img src="{{ image.image_url }}" alt="{{ image.tags }}" 
-                     onclick="recordInteraction('{{ image.image_id }}', 'click')"
-                     onmouseover="recordInteraction('{{ image.image_id }}', 'hover')"
-                     onmouseout="recordInteraction('{{ image.image_id }}', 'hover_end')">
-                <p>{{ image.tags }}</p>
+                <img src="{{ image.url }}" alt="{{ image.id }}" 
+                     onclick="recordInteraction('{{ image.id }}', 'click')"
+                     onmouseover="recordInteraction('{{ image.id }}', 'hover')"
+                     onmouseout="recordInteraction('{{ image.id }}', 'hover_end')">
+                <p>{{ image.label }}</p>
             </div>
         {% endfor %}
     </div>
