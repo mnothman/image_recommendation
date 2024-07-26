@@ -9,14 +9,19 @@ app = Flask(__name__)
 IMAGE_DIR = "data/validation/data"
 
 # use fiftyone
-dataset = foz.load_zoo_dataset(
-    "open-images-v7",
-    split="validation",
-    # dataset_dir=IMAGE_DIR,
-    # dataset_dir="/data/open-images-v7",
-    dataset_dir="data",
-    max_samples=20,  # limit 20 imgs for testing
-)
+try:
+    dataset = foz.load_zoo_dataset(
+        "open-images-v7",
+        split="validation",
+        # dataset_dir=IMAGE_DIR,
+        # dataset_dir="/data/open-images-v7",
+        dataset_dir="data",
+        max_samples=20,  # limit 20 imgs for testing
+    )
+except KeyError as e:
+    print(f"Error downloading dataset: {e}")
+    dataset = None
+
 images = []
 
 
