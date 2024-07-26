@@ -8,6 +8,10 @@ app = Flask(__name__)
 
 IMAGE_DIR = "data/validation/data"
 
+
+#docs: https://voxel51.com/blog/exploring-google-open-images-v7/
+#https://docs.voxel51.com/user_guide/using_datasets.html#labels
+#https://docs.voxel51.com/user_guide/using_datasets.html#metadata
 # use fiftyone
 try:
     dataset = foz.load_zoo_dataset(
@@ -15,6 +19,8 @@ try:
         split="validation",
         dataset_dir="data",
         max_samples=100,  # limit for testing
+        label_types=["points", "detections", "classifications", "relationships", "segmentations"],
+        shuffle=True,
     )
 except KeyError as e:
     print(f"Error downloading dataset: {e}")
@@ -23,27 +29,39 @@ except KeyError as e:
 images = []
 
 if dataset: 
-    dataset = dataset.shuffle()
-
-    selected_samples = dataset.take(20)
+    selected_samples = dataset.take(50)
 
     # prepare images for rendering
-    for sample in dataset:
+    for sample in selected_samples:
         image_path = sample.filepath
         image_filename = os.path.basename(image_path)
 
-        if hasattr(sample, 'ground_truth') and sample.ground_truth.detections:
-            label = sample.ground_truth.detections[0].label
-        else:
-            label = "No Label"
-            
+        labels = []
+
+        if hasattr(sample, 'ground_truth'):
+            if sample.ground_truth.detections:
+                for detection in sample.ground_truth.detections.detections:
+                    labels.append(f"Detection: {detection.label}")
+            if sample.ground_truth.classifications:
+                for classification in sample.ground_truth.classifications.classifications:
+                    labels.append(f"Classification: {classification.label}")
+            if sample.ground_truth.relationships:
+                for relationship in sample.ground_truth.relationships.relationships:
+                    labels.append(f"Relationship: {relationship.label}")
+            if sample.ground_truth.segmentations:
+                for segmentation in sample.ground_truth.segmentations.segmentations:
+                    labels.append(f"Segmentation: {segmentation.label}")
+
+        labels_str = "; ".join(labels) if labels else "No Labels"
+
+
         images.append({
             "id": sample.id,
             "url": f"/images/{image_filename}",
-            "label": label
+            "labels": labels_str
         })
 
-        print(f"Sample ID: {sample.id}, Label: {label}, Image Path: {image_path}")
+        print(f"Sample ID: {sample.id}, Labels: {labels_str}, Image Path: {image_path}")
 
 user_interactions = []
 
@@ -64,3 +82,6 @@ def serve_image(filename):
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
+# session = fo.launch_app(dataset)
+

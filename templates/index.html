@@ -12,7 +12,7 @@
                      onclick="recordInteraction('{{ image.id }}', 'click')"
                      onmouseover="recordInteraction('{{ image.id }}', 'hover')"
                      onmouseout="recordInteraction('{{ image.id }}', 'hover_end')">
-                <p>{{ image.label }}</p>
+                <p>{{ image.labels }}</p>
             </div>
         {% endfor %}
     </div>
