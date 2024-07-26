@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 import fiftyone as fo
 import fiftyone.zoo as foz
 import time
@@ -6,31 +6,36 @@ import os
 
 app = Flask(__name__)
 
-# Load a smaller split of the Open Images dataset v7 using FiftyOne
+IMAGE_DIR = "data/validation/data"
+
+# use fiftyone
 dataset = foz.load_zoo_dataset(
     "open-images-v7",
     split="validation",
-    max_samples=20,  # Limit to 20 images for testing
+    # dataset_dir=IMAGE_DIR,
+    # dataset_dir="/data/open-images-v7",
+    dataset_dir="data",
+    max_samples=20,  # limit 20 imgs for testing
 )
 images = []
 
 
-
-# Prepare images for rendering
+# prepare images for rendering
 for sample in dataset:
-    # Check if 'ground_truth' exists and contains detections
     image_path = sample.filepath
+    image_filename = os.path.basename(image_path)
+
     if hasattr(sample, 'ground_truth') and sample.ground_truth.detections:
         label = sample.ground_truth.detections[0].label
     else:
         label = "No Label"
     images.append({
         "id": sample.id,
-        "filepath": image_path,
+        "url": f"/images/{image_filename}",
         "label": label
     })
 
-    print(f"Sample ID: {sample.id}, Label: {label}")
+    print(f"Sample ID: {sample.id}, Label: {label}, Image Path: {image_path}")
 
 user_interactions = []
 
@@ -44,6 +49,10 @@ def interact():
     data['timestamp'] = time.time()
     user_interactions.append(data)
     return jsonify({"status": "success"})
+
+@app.route('/images/<filename>')
+def serve_image(filename):
+    return send_from_directory(IMAGE_DIR, filename)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
