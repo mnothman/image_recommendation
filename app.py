@@ -19,7 +19,7 @@ try:
         split="validation",
         dataset_dir="data",
         max_samples=100,  # limit for testing
-        label_types=["points", "detections", "classifications", "relationships", "segmentations"],
+        label_types=["detections", "classifications", "relationships", "segmentations"],
         shuffle=True,
     )
 except KeyError as e:
@@ -38,22 +38,23 @@ if dataset:
 
         labels = []
 
-        if hasattr(sample, 'ground_truth'):
-            if sample.ground_truth.detections:
-                for detection in sample.ground_truth.detections.detections:
+        if sample.has_field("detections"):
+                for detection in sample.detections.detections:
                     labels.append(f"Detection: {detection.label}")
-            if sample.ground_truth.classifications:
-                for classification in sample.ground_truth.classifications.classifications:
-                    labels.append(f"Classification: {classification.label}")
-            if sample.ground_truth.relationships:
-                for relationship in sample.ground_truth.relationships.relationships:
-                    labels.append(f"Relationship: {relationship.label}")
-            if sample.ground_truth.segmentations:
-                for segmentation in sample.ground_truth.segmentations.segmentations:
-                    labels.append(f"Segmentation: {segmentation.label}")
+
+        if sample.has_field("classifications"):
+            for classification in sample.classifications.classifications:
+                labels.append(f"Classification: {classification.label}")
+
+        if sample.has_field("relationships"):
+            for relationship in sample.relationships.relationships:
+                labels.append(f"Relationship: {relationship.label}")
+
+        if sample.has_field("segmentations"):
+            for segmentation in sample.segmentations.segmentations:
+                labels.append(f"Segmentation: {segmentation.label}")
 
         labels_str = "; ".join(labels) if labels else "No Labels"
-
 
         images.append({
             "id": sample.id,
@@ -81,7 +82,5 @@ def serve_image(filename):
     return send_from_directory(IMAGE_DIR, filename)
 
 if __name__ == '__main__':
+    fo.launch_app(dataset)
     app.run(host='0.0.0.0', port=5000)
-
-# session = fo.launch_app(dataset)
-
