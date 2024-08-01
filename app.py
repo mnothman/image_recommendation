@@ -1,13 +1,20 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, g
 import fiftyone as fo
 import fiftyone.zoo as foz
 import time
 import os
 from fiftyone import ViewField as F
+import databaseInteractions
 
 app = Flask(__name__)
 
 IMAGE_DIR = "data/validation/data"
+
+@app.teardown_appcontext
+def close_connection(exception):
+    db = getattr(g, '_databaseInteractions', None)
+    if db is not None:
+        db.close()
 
 print("Downloading dataset...")
 
@@ -63,7 +70,6 @@ if dataset:
             "labels": labels_str
         })
 
-user_interactions = []
 
 @app.route('/')
 def index():
@@ -73,14 +79,33 @@ def index():
 def interact():
     data = request.get_json()
     data['timestamp'] = time.time()
-    user_interactions.append(data)
+    databaseInteractions.save_interaction(data)
     return jsonify({"status": "success"})
 
 @app.route('/images/<filename>')
 def serve_image(filename):
     return send_from_directory(IMAGE_DIR, filename)
 
+
+@app.route('/recommendations')
+def recommendations():
+    interactions = databaseInteractions.get_interactions()
+    scores = {}
+
+    for interaction in interactions:
+        image_id = interaction[1]
+        if image_id not in scores:
+            scores[image_id] = []
+        scores[image_id].append(interaction)
+
+    sorted_images = sorted(images, key=lambda img: databaseInteractions.calculate_score(scores.get(img['id'], [])), reverse=True)
+
+    return render_template('index.html', images=sorted_images)
+
+
 if __name__ == '__main__':
+    with app.app_context():
+        databaseInteractions.init_db()
     fo.launch_app(dataset)
     fo.pprint(dataset.stats(include_media=True))
     app.run(host='0.0.0.0', port=5000)

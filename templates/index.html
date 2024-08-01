@@ -1,35 +1,57 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Image Recommendation</title>
 </head>
+
 <body>
     <h1>Image Gallery</h1>
     <div id="gallery">
         {% for image in images %}
-            <div class="image">
-                <img src="{{ image.url }}" alt="{{ image.id }}" 
-                     onclick="recordInteraction('{{ image.id }}', 'click')"
-                     onmouseover="recordInteraction('{{ image.id }}', 'hover')"
-                     onmouseout="recordInteraction('{{ image.id }}', 'hover_end')">
-                <p>{{ image.labels }}</p>
-            </div>
+        <div class="image">
+            <img src="{{ image.url }}" alt="{{ image.id }}" onclick="recordInteraction('{{ image.id }}', 'click')"
+                onmouseover="startHover('{{ image.id }}', 'hover')"
+                onmouseout="endHover('{{ image.id }}', 'hover_end')">
+            <p>{{ image.labels }}</p>
+            <button onclick="recordInteraction('{{ image.id }}', 'like')">Like</button>
+            <button onclick="comment('{{ image.id }}')">Comment</button>
+        </div>
         {% endfor %}
     </div>
-    
+
     <script>
         let hoverStart = {};
+        let hoverRecorded = new Set();
 
         function recordInteraction(imageId, action) {
-            let interaction = {image_id: imageId, action: action};
+            let interaction = { image_id: imageId, action: action };
 
             if (action === 'hover') {
                 hoverStart[imageId] = new Date().getTime();
             } else if (action === 'hover_end') {
-                interaction['hover_time'] = new Date().getTime() - hoverStart[imageId];
-                delete hoverStart[imageId];
+                if (!hoverRecorded.has(imageId)) {
+                    interaction['hover_time'] = new Date().getTime() - hoverStart[imageId];
+                    hoverRecorded.add(imageId);
+                    sendInteraction(interaction);
+                }
+            } else {
+                sendInteraction(interaction);
             }
+        }
 
+        function startHover(imageId) {
+            hoverStart[imageId] = new Date().getTime();
+        }
+        function endHover(imageId) {
+            if (!hoverRecorded.has(imageId)) {
+                let hoverTime = new Date().getTime() - hoverStart[imageId];
+                let interaction = { image_id: imageId, action: 'hover_end', hover_time: hoverTime };
+                hoverRecorded.add(imageId);
+                sendInteraction(interaction);
+            }
+        }
+        function sendInteraction(interaction) {
             fetch('/interact', {
                 method: 'POST',
                 headers: {
@@ -37,8 +59,27 @@
                 },
                 body: JSON.stringify(interaction),
             }).then(response => response.json())
-              .then(data => console.log(data));
+                .then(data => console.log(data));
+        }
+
+
+        fetch('/interact', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(interaction),
+        }).then(response => response.json())
+            .then(data => console.log(data));
+
+        function comment(imageId) {
+            let commentText = prompt("Enter your comment:");
+            if (commentText) {
+                let interaction = { image_id: imageId, action: 'comment', comment: commentText };
+                sendInteraction(interaction);
+            }
         }
     </script>
 </body>
+
 </html>
