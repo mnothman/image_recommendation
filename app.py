@@ -3,6 +3,7 @@ import fiftyone as fo
 import fiftyone.zoo as foz
 import time
 import os
+from fiftyone import ViewField as F
 
 app = Flask(__name__)
 
@@ -19,50 +20,47 @@ try:
         split="validation",
         dataset_dir="data",
         max_samples=100,  # limit for testing
-        label_types=["detections", "classifications", "relationships", "segmentations"],
+        label_types=["classifications"],
         shuffle=True,
     )
 except KeyError as e:
     print(f"Error downloading dataset: {e}")
     dataset = None
 
+#https://stackoverflow.com/questions/70274971/exclude-certain-classes-when-loading-dataset-with-fiftyone
+
 images = []
 
-if dataset: 
+
+# neg_view = dataset.filter_labels("negative_labels", F("label")=="Person")
+# print("negative view count:", neg_view.count())
+# # print("neg view count classifications:", neg_view.values("classifications"))
+# print("all neg views: ", neg_view)
+
+if dataset:
     selected_samples = dataset.take(50)
 
-    # prepare images for rendering
+    # # prepare images for rendering
     for sample in selected_samples:
         image_path = sample.filepath
         image_filename = os.path.basename(image_path)
 
         labels = []
 
-        if sample.has_field("detections"):
-                for detection in sample.detections.detections:
-                    labels.append(f"Detection: {detection.label}")
-
-        if sample.has_field("classifications"):
-            for classification in sample.classifications.classifications:
-                labels.append(f"Classification: {classification.label}")
-
-        if sample.has_field("relationships"):
-            for relationship in sample.relationships.relationships:
-                labels.append(f"Relationship: {relationship.label}")
-
-        if sample.has_field("segmentations"):
-            for segmentation in sample.segmentations.segmentations:
-                labels.append(f"Segmentation: {segmentation.label}")
+        if sample.has_field("positive_labels") and sample.positive_labels is not None:
+            for classification in sample.positive_labels.classifications:
+                labels.append(classification.label)
 
         labels_str = "; ".join(labels) if labels else "No Labels"
+
+        print(f"Sample ID: {sample.id}, Positive Labels: {labels_str}, Image Path: {image_path}")
+
 
         images.append({
             "id": sample.id,
             "url": f"/images/{image_filename}",
             "labels": labels_str
         })
-
-        print(f"Sample ID: {sample.id}, Labels: {labels_str}, Image Path: {image_path}")
 
 user_interactions = []
 
@@ -83,4 +81,5 @@ def serve_image(filename):
 
 if __name__ == '__main__':
     fo.launch_app(dataset)
+    fo.pprint(dataset.stats(include_media=True))
     app.run(host='0.0.0.0', port=5000)
