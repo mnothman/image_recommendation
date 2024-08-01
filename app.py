@@ -9,6 +9,7 @@ app = Flask(__name__)
 
 IMAGE_DIR = "data/validation/data"
 
+print("Downloading dataset...")
 
 #docs: https://voxel51.com/blog/exploring-google-open-images-v7/
 #https://docs.voxel51.com/user_guide/using_datasets.html#labels
