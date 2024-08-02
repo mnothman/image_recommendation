@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory, g
+from flask import Flask, render_template, request, jsonify, send_from_directory, g, redirect, url_for, session
 import fiftyone as fo
 import fiftyone.zoo as foz
 import time
@@ -7,6 +7,7 @@ from fiftyone import ViewField as F
 import databaseInteractions
 
 app = Flask(__name__)
+app.secret_key = 'testKey'
 
 IMAGE_DIR = "data/validation/data"
 
@@ -17,6 +18,10 @@ def close_connection(exception):
         db.close()
 
 print("Downloading dataset...")
+
+
+#sort reset for algorithm every week or so. if someone hates dogs show them a dog pic or two to see if they still hate dogs. 
+#not interested button for pics (get the negative labels of those images)
 
 #docs: https://voxel51.com/blog/exploring-google-open-images-v7/
 #https://docs.voxel51.com/user_guide/using_datasets.html#labels
@@ -74,6 +79,7 @@ if dataset:
 @app.route('/')
 def index():
     return render_template('index.html', images=images)
+# implement safe search here
 
 @app.route('/interact', methods=['POST'])
 def interact():
@@ -86,6 +92,14 @@ def interact():
 def serve_image(filename):
     return send_from_directory(IMAGE_DIR, filename)
 
+
+@app.route('/settings', methods=['GET', 'POST'])
+def settings():
+    if request.method == 'POST':
+        safe_search = 'safe_search' in request.form
+        session['safe_search'] = safe_search
+        return redirect(url_for('index'))
+    return render_template('settings.html', safe_search=session.get('safe_search', False))
 
 @app.route('/recommendations')
 def recommendations():
@@ -101,7 +115,6 @@ def recommendations():
     sorted_images = sorted(images, key=lambda img: databaseInteractions.calculate_score(scores.get(img['id'], [])), reverse=True)
 
     return render_template('index.html', images=sorted_images)
-
 
 if __name__ == '__main__':
     with app.app_context():

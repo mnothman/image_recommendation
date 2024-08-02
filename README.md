@@ -1,4 +1,5 @@
-testing algorithm for user interactions 
+testing algorithm for user interactions <br/>
+including interactions such as likes, comments, watch time per image and showing more content geared toward the user preference
 
 
 
