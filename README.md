@@ -7,4 +7,4 @@ build: <br/>
 make build <br/>
 
 run: <br/>
-docker run -p 5000:5000 image_recommendation
+docker run -p 5000:5000 -p 5151:5151 image_recommendation
