@@ -1,0 +1,8 @@
+# Ignore SQLite database file created in data
+data/interactions.db
+
+# Ignore info.json file created in data
+data/info.json
+
+# Ignore validation directory created in data
+data/validation/

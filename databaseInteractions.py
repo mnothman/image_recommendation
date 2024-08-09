@@ -4,7 +4,8 @@ from flask import g
 
 # logging.basicConfig(level=logging.DEBUG)
 
-DATABASE = 'interactions.db'
+#creates db in folder data
+DATABASE = '/app/data/interactions.db'
 
 def get_db():
     db = getattr(g, '_databaseInteractions', None)
