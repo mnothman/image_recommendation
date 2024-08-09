@@ -166,7 +166,7 @@ def recommendations():
 if __name__ == '__main__':
     with app.app_context():
         databaseInteractions.init_db()
-        cleanup_old_images(IMAGE_DIR, threshold_days=7)  # 2/2 Remove later when hosting db
+        cleanup_old_images(IMAGE_DIR, threshold_days=2)  # 2/2 Remove later when hosting db
     fo.launch_app(dataset)
     fo.pprint(dataset.stats(include_media=True))
     app.run(host='0.0.0.0', port=5000)
