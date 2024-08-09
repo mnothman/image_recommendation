@@ -5,11 +5,14 @@ import time
 import os
 from fiftyone import ViewField as F
 import databaseInteractions
+from cleanup import cleanup_old_images # 1/2 Remove later when hosting 
 
 app = Flask(__name__)
 app.secret_key = 'testKey'
 
 IMAGE_DIR = "data/validation/data"
+
+
 
 @app.teardown_appcontext
 def close_connection(exception):
@@ -163,6 +166,7 @@ def recommendations():
 if __name__ == '__main__':
     with app.app_context():
         databaseInteractions.init_db()
+        cleanup_old_images(IMAGE_DIR, threshold_days=7)  # 2/2 Remove later when hosting db
     fo.launch_app(dataset)
     fo.pprint(dataset.stats(include_media=True))
     app.run(host='0.0.0.0', port=5000)
