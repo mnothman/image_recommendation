@@ -75,16 +75,57 @@ if dataset:
             "labels": labels_str
         })
 
-
+        
 @app.route('/')
 def index():
-    return render_template('index.html', images=images)
-# implement safe search here
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    # fetch settings
+    user = databaseInteractions.get_user(session['username'])
+    # fix error TypeError: 'NoneType' object is not subscriptable when logging back in after restart app
+    if not user:
+        session.pop('username', None)  # Clear the session
+        return redirect(url_for('login'))
+
+    safe_search = user[4] == 1  # safe_search is the 5th column in the users table
+    filtered_images = images
+    if safe_search:
+        filtered_images = [img for img in images if 'unsafe' not in img['labels'].lower()]
+    return render_template('index.html', images=filtered_images)
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        databaseInteractions.save_user(username, password)
+        return redirect(url_for('login'))
+    return render_template('register.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        user = databaseInteractions.get_user(username)
+        if user and user[2] == password:
+            session['username'] = username
+            return redirect(url_for('index'))
+        else:
+            error = "Invalid username or password."
+            return render_template('login.html', error=error)
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.pop('username', None)
+    return redirect(url_for('login'))
 
 @app.route('/interact', methods=['POST'])
 def interact():
     data = request.get_json()
     data['timestamp'] = time.time()
+    data['username'] = session.get('username')
     databaseInteractions.save_interaction(data)
     return jsonify({"status": "success"})
 
@@ -92,14 +133,17 @@ def interact():
 def serve_image(filename):
     return send_from_directory(IMAGE_DIR, filename)
 
-
 @app.route('/settings', methods=['GET', 'POST'])
 def settings():
+    if 'username' not in session:
+        return redirect(url_for('login'))
     if request.method == 'POST':
         safe_search = 'safe_search' in request.form
-        session['safe_search'] = safe_search
+        preferences = request.form.get('preferences', '')
+        databaseInteractions.update_user_preferences(session['username'], preferences, 1 if safe_search else 0)
         return redirect(url_for('index'))
-    return render_template('settings.html', safe_search=session.get('safe_search', False))
+    user = databaseInteractions.get_user(session['username'])
+    return render_template('settings.html', safe_search=user[4], preferences=user[3])
 
 @app.route('/recommendations')
 def recommendations():

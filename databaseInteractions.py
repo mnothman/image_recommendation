@@ -19,11 +19,22 @@ def init_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS interactions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
             image_id TEXT NOT NULL,
             action TEXT NOT NULL,
             timestamp REAL NOT NULL,
             hover_time REAL,
             comment TEXT
+        )
+    ''')
+    # safe_search at [4] is connected to app.py route ('/') line safe_search = user[4] == 1 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            password TEXT NOT NULL,
+            preferences TEXT,
+            safe_search INTEGER DEFAULT 0 
         )
     ''')
     db.commit()
@@ -34,9 +45,9 @@ def save_interaction(data):
     cursor = db.cursor()
     # logging.debug(f"Saving interaction: {data}")
     cursor.execute('''
-        INSERT INTO interactions (image_id, action, timestamp, hover_time, comment)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (data['image_id'], data['action'], data['timestamp'], data.get('hover_time'), data.get('comment')))
+        INSERT INTO interactions (username, image_id, action, timestamp, hover_time, comment)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (data['username'], data['image_id'], data['action'], data['timestamp'], data.get('hover_time'), data.get('comment')))
     db.commit()
     # logging.debug("Interaction saved.")
 
@@ -45,6 +56,31 @@ def get_interactions():
     cursor = db.cursor()
     cursor.execute('SELECT * FROM interactions')
     return cursor.fetchall()
+
+def save_user(username, password):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute('''
+        INSERT INTO users (username, password)
+        VALUES (?, ?)
+    ''', (username, password))
+    db.commit()
+
+def get_user(username):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
+    return cursor.fetchone()
+
+def update_user_preferences(username, preferences, safe_search):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute('''
+        UPDATE users
+        SET preferences = ?, safe_search = ?
+        WHERE username = ? 
+    ''', (preferences, safe_search, username))
+    db.commit()
 
 def calculate_score(interactions):
     score = 0
@@ -55,9 +91,9 @@ def calculate_score(interactions):
     }
 
     for interaction in interactions:
-        if interaction[2] == 'hover' and interaction[4]:  # hover action
-            score += weights['hover'] * (interaction[4] / 1000)  # hover time weighted
+        if interaction[3] == 'hover' and interaction[5]:  # hover action
+            score += weights['hover'] * (interaction[5] / 1000)  # hover time weighted
         else:
-            score += weights.get(interaction[2], 0)
+            score += weights.get(interaction[3], 0)
 
     return score

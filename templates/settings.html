@@ -8,8 +8,13 @@
     <form action="/settings" method="post">
         <label for="safe_search">Safe Search:</label>
         <input type="checkbox" id="safe_search" name="safe_search" {% if safe_search %}checked{% endif %}>
+        <br>
+        <label for="preferences">Preferences:</label>
+        <input type="text" id="preferences" name="preferences" value="{{ preferences }}">
+        <br>
         <button type="submit">Save</button>
     </form>
+    
     <a href="/">Back to Home</a>
 </body>
 </html>
