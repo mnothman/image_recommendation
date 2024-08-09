@@ -5,6 +5,7 @@ import time
 import os
 from fiftyone import ViewField as F
 import databaseInteractions
+from databaseInteractions import calculate_score
 from cleanup import cleanup_old_images # 1/2 Remove later when hosting 
 
 app = Flask(__name__)
@@ -96,6 +97,26 @@ def index():
         filtered_images = [img for img in images if 'unsafe' not in img['labels'].lower()]
     return render_template('index.html', images=filtered_images)
 
+@app.route('/recommendations')
+def recommendations():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    interactions = databaseInteractions.get_interactions()
+    label_map = {image['id']: image['labels'].split('; ') for image in images}
+
+    filtered_interactions = [
+        interaction for interaction in interactions
+        if interaction[2] in label_map and label_map[interaction[2]] != ["No Labels"]
+    ]
+
+    label_scores = calculate_score(interactions, label_map)
+    
+    # rank images based on cumulative label scores
+    sorted_images = sorted(images, key=lambda img: sum(label_scores.get(label, 0) for label in img['labels'].split('; ')), reverse=True)
+    
+    return render_template('recommendations.html', images=sorted_images, interactions=filtered_interactions, label_scores=label_scores)
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -147,21 +168,6 @@ def settings():
         return redirect(url_for('index'))
     user = databaseInteractions.get_user(session['username'])
     return render_template('settings.html', safe_search=user[4], preferences=user[3])
-
-@app.route('/recommendations')
-def recommendations():
-    interactions = databaseInteractions.get_interactions()
-    scores = {}
-
-    for interaction in interactions:
-        image_id = interaction[1]
-        if image_id not in scores:
-            scores[image_id] = []
-        scores[image_id].append(interaction)
-
-    sorted_images = sorted(images, key=lambda img: databaseInteractions.calculate_score(scores.get(img['id'], [])), reverse=True)
-
-    return render_template('index.html', images=sorted_images)
 
 if __name__ == '__main__':
     with app.app_context():

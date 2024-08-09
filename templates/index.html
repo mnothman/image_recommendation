@@ -1,3 +1,5 @@
+<!-- Displays the initial page that does not take into consideration user interactions and recommendations based on them -->
+
 <!DOCTYPE html>
 <html>
 
@@ -11,6 +13,7 @@
         <button>Logout</button>
     <a href="/settings">
         <button>Settings</button>
+    <a href="{{ url_for('recommendations') }}">View Recommendations</a>
     </a>
     <div id="gallery">
         {% for image in images %}
@@ -24,7 +27,8 @@
         </div>
         {% endfor %}
     </div>
-
+    <!-- recommendations page -->
+  
     <script>
         let hoverStart = {};
         let hoverRecorded = new Set();

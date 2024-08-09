@@ -83,18 +83,30 @@ def update_user_preferences(username, preferences, safe_search):
     ''', (preferences, safe_search, username))
     db.commit()
 
-def calculate_score(interactions):
-    score = 0
+def calculate_score(interactions, label_map): #calc scores based on interactions. Interactions is a list of interactions, label_map is a dictionary of image_id to labels
+    # Return is dictionary with labels as keys and their calculated scores as values.
+    label_scores = {}
     weights = {
         'like': 3,
         'comment': 2,
         'hover': 1
     }
-
+    # iterate thru interactions for scores of each label
     for interaction in interactions:
-        if interaction[3] == 'hover' and interaction[5]:  # hover action
-            score += weights['hover'] * (interaction[5] / 1000)  # hover time weighted
-        else:
-            score += weights.get(interaction[3], 0)
+        image_id = interaction[2]
+        action = interaction[3]
+        hover_time = interaction[5]
+        
+        if image_id in label_map:
+            labels = label_map[image_id]
+            for label in labels:
+                if label not in label_scores:
+                    label_scores[label] = 0
+                
+                # Add the score based on action
+                if action == 'hover' and hover_time:
+                    label_scores[label] += weights['hover'] * (hover_time / 1000)  # hover time weight
+                else:
+                    label_scores[label] += weights.get(action, 0)
 
-    return score
+    return label_scores

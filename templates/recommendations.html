@@ -1,0 +1,39 @@
+<!-- displays page of recommended images from user based on their interaction score -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Recommendations</title>
+</head>
+<body>
+    <h1>Your Recommendations</h1>
+
+       <!-- display interactions for testing -->
+       <div id="user-interactions">
+        <h2>Your Interactions</h2>
+        <ul>
+            {% for interaction in interactions %}
+                <li>
+                    Image ID: {{ interaction[2] }}, Action: {{ interaction[3] }}, Timestamp: {{ interaction[4] }}, Hover Time: {{ interaction[5] }}, Comment: {{ interaction[6] }}
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+    <div id="label-scores">
+        <h2>Your Label Scores</h2>
+        <ul>
+            {% for label, score in label_scores.items() %}
+                <li>{{ label }}: {{ score }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    <div id="gallery">
+        {% for image in images %}
+            <div class="image">
+                <img src="{{ image.url }}" alt="{{ image.id }}">
+                <p>{{ image.labels }}</p>
+            </div>
+        {% endfor %}
+    </div>
+    <a href="{{ url_for('index') }}">Back to Initial Gallery</a>
+</body>
+</html>
