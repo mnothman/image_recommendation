@@ -1,36 +1,62 @@
-<!-- Displays the initial page that does not take into consideration user interactions and recommendations based on them -->
-
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Recommendation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
+<body class="bg-gray-100 text-gray-900">
 
-<body>
-    <h1>Image Gallery</h1>
-    <a href="/logout">
-        <button>Logout</button>
-    <a href="/settings">
-        <button>Settings</button>
-    <a href="{{ url_for('recommendations') }}">View Recommendations</a>
-    </a>
-    <div id="gallery">
-        {% for image in images %}
-        <div class="image">
-            <img src="{{ image.url }}" alt="{{ image.id }}" onclick="recordInteraction('{{ image.id }}', 'click')"
-                onmouseover="startHover('{{ image.id }}', 'hover')"
-                onmouseout="endHover('{{ image.id }}', 'hover_end')">
-            <p>{{ image.labels }}</p>
-            <button onclick="recordInteraction('{{ image.id }}', 'like')">Like</button>
-            <button onclick="comment('{{ image.id }}')">Comment</button>
+    <header class="bg-blue-600 text-white p-4 flex justify-between items-center shadow-md">
+        <h1 class="text-2xl font-bold">Image Gallery</h1>
+        <div>
+            <a href="/logout" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">Logout</a>
+            <a href="/settings" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded ml-2">Settings</a>
+            <a href="{{ url_for('recommendations') }}" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded ml-2">View Recommendations</a>
         </div>
-        {% endfor %}
-    </div>
+    </header>
+
+    <main class="p-8">
+        <div id="gallery" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {% for image in images %}
+            <div class="relative group"
+                onclick="recordInteraction('{{ image.id }}', 'click')" 
+                onmouseover="startHover('{{ image.id }}')" 
+                onmouseout="endHover('{{ image.id }}')">
+                <img src="{{ image.url }}" alt="{{ image.id }}" 
+                    onclick="recordInteraction('{{ image.id }}', 'click')" 
+                    class="w-full h-auto rounded-lg shadow-lg hover:opacity-75 transition-opacity duration-200">
+                <div class="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 bg-black bg-opacity-50 transition-opacity duration-200 rounded-lg">
+                    <p class="text-white text-lg font-bold">{{ image.labels }}</p>
+                    <div class="mt-2">
+                        <button onclick="recordInteraction('{{ image.id }}', 'like')" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded m-1">Like</button>
+                        <button onclick="comment('{{ image.id }}')" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded m-1">Comment</button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </main>
 
     <script>
         let hoverStart = {};
         let hoverRecorded = new Set();
+
+        function startHover(imageId) {
+            hoverStart[imageId] = new Date().getTime();
+            console.log(`Hover started for image ${imageId}`);
+        }
+
+        function endHover(imageId) {
+            if (!hoverRecorded.has(imageId)) {
+                let hoverTime = new Date().getTime() - hoverStart[imageId];
+                let interaction = { image_id: imageId, action: 'hover_end', hover_time: hoverTime };
+                hoverRecorded.add(imageId);
+                console.log(`Hover ended for image ${imageId}, hover time: ${hoverTime}ms`);
+                sendInteraction(interaction);
+            }
+        }
 
         function recordInteraction(imageId, action) {
             let interaction = { image_id: imageId, action: action };
@@ -48,17 +74,6 @@
             }
         }
 
-        function startHover(imageId) {
-            hoverStart[imageId] = new Date().getTime();
-        }
-        function endHover(imageId) {
-            if (!hoverRecorded.has(imageId)) {
-                let hoverTime = new Date().getTime() - hoverStart[imageId];
-                let interaction = { image_id: imageId, action: 'hover_end', hover_time: hoverTime };
-                hoverRecorded.add(imageId);
-                sendInteraction(interaction);
-            }
-        }
         function sendInteraction(interaction) {
             fetch('/interact', {
                 method: 'POST',
@@ -67,7 +82,7 @@
                 },
                 body: JSON.stringify(interaction),
             }).then(response => response.json())
-                .then(data => console.log(data));
+                .then(data => console.log('Interaction recorded:', data));
         }
 
         function comment(imageId) {
@@ -79,5 +94,4 @@
         }
     </script>
 </body>
-
 </html>

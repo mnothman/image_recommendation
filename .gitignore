@@ -6,3 +6,7 @@ data/info.json
 
 # Ignore validation directory created in data
 data/validation/
+
+
+index2.html
+recommendations2.html

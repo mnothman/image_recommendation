@@ -1,49 +1,89 @@
-<!-- displays page of recommended images from user based on their interaction score -->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Recommendations</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Recommendations</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <h1>Your Recommendations</h1>
-    <div>
-        <a href="/logout"><button>Logout</button></a>
-        <a href="/settings"><button>Settings</button></a>
-        <a href="{{ url_for('index') }}">Back to Initial Gallery</a>
-    </div>
-       <!-- display interactions for testing -->
-       <div id="user-interactions">
-        <h2>Your Interactions</h2>
-        <ul>
-            {% for interaction in interactions %}
-                <li>
-                    Image ID: {{ interaction[2] }}, Action: {{ interaction[3] }}, Timestamp: {{ interaction[4] }}, Hover Time: {{ interaction[5] }}, Comment: {{ interaction[6] }}
-                </li>
-            {% endfor %}
-        </ul>
-    </div>
-    <div id="label-scores">
-        <h2>Your Label Scores</h2>
-        <ul>
-            {% for label, score in label_scores.items() %}
-                <li>{{ label }}: {{ score }}</li>
-            {% endfor %}
-        </ul>
-    </div>
-    <div id="gallery">
-        {% for image in images %}
-            <div class="image">
-                <img src="{{ image.url }}" alt="{{ image.id }}">
-                <p>{{ image.labels }}</p>
-                <button onclick="recordInteraction('{{ image.id }}', 'like')">Like</button>
-                <button onclick="comment('{{ image.id }}')">Comment</button>
+<body class="bg-gray-100 text-gray-900">
+
+    <header class="bg-blue-600 text-white p-4 flex justify-between items-center shadow-md">
+        <h1 class="text-2xl font-bold">Your Recommendations</h1>
+        <div>
+            <a href="/logout" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">Logout</a>
+            <a href="/settings" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded ml-2">Settings</a>
+            <a href="{{ url_for('index') }}" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded ml-2">Back to Initial Gallery</a>
+        </div>
+    </header>
+
+    <main class="p-8">
+
+        <!-- Displaying User Interactions -->
+        <div id="user-interactions" class="mb-8">
+            <h2 class="text-xl font-bold mb-4">Your Interactions</h2>
+            <ul class="list-disc pl-5 space-y-2">
+                {% for interaction in interactions %}
+                    <li class="bg-white p-4 rounded-lg shadow-md">
+                        Image ID: <span class="font-semibold">{{ interaction[2] }}</span>, 
+                        Action: <span class="font-semibold">{{ interaction[3] }}</span>, 
+                        Timestamp: <span class="font-semibold">{{ interaction[4] }}</span>, 
+                        Hover Time: <span class="font-semibold">{{ interaction[5] }}</span>, 
+                        Comment: <span class="font-semibold">{{ interaction[6] }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Displaying Label Scores -->
+        <div id="label-scores" class="mb-8">
+            <h2 class="text-xl font-bold mb-4">Your Label Scores</h2>
+            <ul class="list-disc pl-5 space-y-2">
+                {% for label, score in label_scores.items() %}
+                    <li class="bg-white p-4 rounded-lg shadow-md">{{ label }}: <span class="font-semibold">{{ score }}</span></li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Gallery of Recommended Images -->
+        <div id="gallery" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {% for image in images %}
+            <div class="relative group">
+                <img src="{{ image.url }}" alt="{{ image.id }}" 
+                    onclick="recordInteraction('{{ image.id }}', 'click')" 
+                    onmouseover="startHover('{{ image.id }}')" 
+                    onmouseout="endHover('{{ image.id }}')" 
+                    class="w-full h-auto rounded-lg shadow-lg hover:opacity-75 transition-opacity duration-200">
+                <div class="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 bg-black bg-opacity-50 transition-opacity duration-200 rounded-lg">
+                    <p class="text-white text-lg font-bold">{{ image.labels }}</p>
+                    <div class="mt-2">
+                        <button onclick="recordInteraction('{{ image.id }}', 'like')" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded m-1">Like</button>
+                        <button onclick="comment('{{ image.id }}')" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded m-1">Comment</button>
+                    </div>
+                </div>
             </div>
-        {% endfor %}
-    </div>
+            {% endfor %}
+        </div>
+    </main>
 
     <script>
         let hoverStart = {};
         let hoverRecorded = new Set();
+
+        function startHover(imageId) {
+            hoverStart[imageId] = new Date().getTime();
+            console.log(`Hover started for image ${imageId}`);
+        }
+
+        function endHover(imageId) {
+            if (!hoverRecorded.has(imageId)) {
+                let hoverTime = new Date().getTime() - hoverStart[imageId];
+                let interaction = { image_id: imageId, action: 'hover_end', hover_time: hoverTime };
+                hoverRecorded.add(imageId);
+                console.log(`Hover ended for image ${imageId}, hover time: ${hoverTime}ms`);
+                sendInteraction(interaction);
+            }
+        }
 
         function recordInteraction(imageId, action) {
             let interaction = { image_id: imageId, action: action };
@@ -61,17 +101,6 @@
             }
         }
 
-        function startHover(imageId) {
-            hoverStart[imageId] = new Date().getTime();
-        }
-        function endHover(imageId) {
-            if (!hoverRecorded.has(imageId)) {
-                let hoverTime = new Date().getTime() - hoverStart[imageId];
-                let interaction = { image_id: imageId, action: 'hover_end', hover_time: hoverTime };
-                hoverRecorded.add(imageId);
-                sendInteraction(interaction);
-            }
-        }
         function sendInteraction(interaction) {
             fetch('/interact', {
                 method: 'POST',
@@ -80,7 +109,7 @@
                 },
                 body: JSON.stringify(interaction),
             }).then(response => response.json())
-                .then(data => console.log(data));
+                .then(data => console.log('Interaction recorded:', data));
         }
 
         function comment(imageId) {
@@ -91,6 +120,5 @@
             }
         }
     </script>
-    
 </body>
 </html>
