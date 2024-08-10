@@ -6,12 +6,11 @@
 </head>
 <body>
     <h1>Your Recommendations</h1>
-    <a href="/logout">
-        <button>Logout</button>
-    <a href="/settings">
-        <button>Settings</button>
+    <div>
+        <a href="/logout"><button>Logout</button></a>
+        <a href="/settings"><button>Settings</button></a>
         <a href="{{ url_for('index') }}">Back to Initial Gallery</a>
-    </a>
+    </div>
        <!-- display interactions for testing -->
        <div id="user-interactions">
         <h2>Your Interactions</h2>
@@ -38,7 +37,6 @@
                 <p>{{ image.labels }}</p>
                 <button onclick="recordInteraction('{{ image.id }}', 'like')">Like</button>
                 <button onclick="comment('{{ image.id }}')">Comment</button>
-            </div>
             </div>
         {% endfor %}
     </div>

@@ -112,12 +112,23 @@ def recommendations():
         if interaction[2] in label_map and label_map[interaction[2]] != ["No Labels"]
     ]
 
-    label_scores = calculate_score(filtered_interactions, label_map)
+    # calculate label scores and update users label preferences
+    label_scores = databaseInteractions.calculate_score(filtered_interactions, label_map)
     
+    # retrieve label scores stored in db for the user
+    stored_label_scores = databaseInteractions.get_user_label_scores(session['username'])
+
+    # merge in session labels with current stores ones IMPORTANT
+    for label, score in label_scores.items():
+        if label in stored_label_scores:
+            stored_label_scores[label] += score
+        else:
+            stored_label_scores[label] = score
+
     # rank images based on cumulative label scores
-    sorted_images = sorted(images, key=lambda img: sum(label_scores.get(label, 0) for label in img['labels'].split('; ')), reverse=True)
+    sorted_images = sorted(images, key=lambda img: sum(stored_label_scores.get(label, 0) for label in img['labels'].split('; ')), reverse=True)
     
-    return render_template('recommendations.html', images=sorted_images, interactions=filtered_interactions, label_scores=label_scores)
+    return render_template('recommendations.html', images=sorted_images, interactions=filtered_interactions, label_scores=stored_label_scores)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -152,7 +163,11 @@ def interact():
     data = request.get_json()
     data['timestamp'] = time.time()
     data['username'] = session.get('username')
-    databaseInteractions.save_interaction(data)
+
+    # pass label_map to save_interaction
+    label_map = {image['id']: image['labels'].split('; ') for image in images}
+    databaseInteractions.save_interaction(data, label_map)
+
     return jsonify({"status": "success"})
 
 @app.route('/images/<filename>')

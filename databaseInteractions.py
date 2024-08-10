@@ -28,6 +28,7 @@ def init_db():
             comment TEXT
         )
     ''')
+    # users table with preferences and safe_search
     # safe_search at [4] is connected to app.py route ('/') line safe_search = user[4] == 1 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
@@ -36,6 +37,15 @@ def init_db():
             password TEXT NOT NULL,
             preferences TEXT,
             safe_search INTEGER DEFAULT 0 
+        )
+    ''')
+    # table for labels and scores
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS label_scores (
+            username TEXT NOT NULL,
+            label TEXT NOT NULL,
+            score INTEGER DEFAULT 0,
+            PRIMARY KEY (username, label)
         )
     ''')
     db.commit()
@@ -53,7 +63,7 @@ def init_db():
 #     # logging.debug("Interaction saved.")
 
 
-def save_interaction(data):
+def save_interaction(data, label_map):
     db = get_db()
     cursor = db.cursor()
 
@@ -84,6 +94,45 @@ def save_interaction(data):
         ''', (data['username'], data['image_id'], data['action'], data['timestamp'], data.get('hover_time'), data.get('comment')))
 
     db.commit()
+    # update label scores
+    if data['image_id'] in label_map:
+        labels = label_map[data['image_id']]
+        update_label_scores(data['username'], labels, data['action'], data.get('hover_time'))
+
+    db.commit()
+    
+# function that updates label scores based on interactions in DB so that it is persistent
+def update_label_scores(username, labels, action, hover_time=None):
+    db = get_db()
+    cursor = db.cursor()
+    
+    weights = {
+        'like': 3,
+        'comment': 2,
+        'hover': 1
+    }
+    
+    score_increment = weights.get(action, 0)
+    if action == 'hover' and hover_time:
+        score_increment = weights['hover'] * (hover_time / 1000)
+
+    
+    for label in labels:
+        cursor.execute('''
+            INSERT INTO label_scores (username, label, score)
+            VALUES (?, ?, ?)
+            ON CONFLICT(username, label) DO UPDATE SET
+            score = score + excluded.score
+        ''', (username, label, score_increment))
+    
+    db.commit()
+# fetch label scores when generating recommendations
+def get_user_label_scores(username):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute('SELECT label, score FROM label_scores WHERE username = ?', (username,))
+    return dict(cursor.fetchall())
+
 
 def get_interactions(username):
     db = get_db()
