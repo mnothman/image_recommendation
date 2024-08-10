@@ -27,8 +27,7 @@
         </div>
         {% endfor %}
     </div>
-    <!-- recommendations page -->
-  
+
     <script>
         let hoverStart = {};
         let hoverRecorded = new Set();
@@ -70,16 +69,6 @@
             }).then(response => response.json())
                 .then(data => console.log(data));
         }
-
-
-        fetch('/interact', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(interaction),
-        }).then(response => response.json())
-            .then(data => console.log(data));
 
         function comment(imageId) {
             let commentText = prompt("Enter your comment:");

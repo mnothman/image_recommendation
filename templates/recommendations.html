@@ -6,7 +6,12 @@
 </head>
 <body>
     <h1>Your Recommendations</h1>
-
+    <a href="/logout">
+        <button>Logout</button>
+    <a href="/settings">
+        <button>Settings</button>
+        <a href="{{ url_for('index') }}">Back to Initial Gallery</a>
+    </a>
        <!-- display interactions for testing -->
        <div id="user-interactions">
         <h2>Your Interactions</h2>
@@ -31,9 +36,63 @@
             <div class="image">
                 <img src="{{ image.url }}" alt="{{ image.id }}">
                 <p>{{ image.labels }}</p>
+                <button onclick="recordInteraction('{{ image.id }}', 'like')">Like</button>
+                <button onclick="comment('{{ image.id }}')">Comment</button>
+            </div>
             </div>
         {% endfor %}
     </div>
-    <a href="{{ url_for('index') }}">Back to Initial Gallery</a>
+
+    <script>
+        let hoverStart = {};
+        let hoverRecorded = new Set();
+
+        function recordInteraction(imageId, action) {
+            let interaction = { image_id: imageId, action: action };
+
+            if (action === 'hover') {
+                hoverStart[imageId] = new Date().getTime();
+            } else if (action === 'hover_end') {
+                if (!hoverRecorded.has(imageId)) {
+                    interaction['hover_time'] = new Date().getTime() - hoverStart[imageId];
+                    hoverRecorded.add(imageId);
+                    sendInteraction(interaction);
+                }
+            } else {
+                sendInteraction(interaction);
+            }
+        }
+
+        function startHover(imageId) {
+            hoverStart[imageId] = new Date().getTime();
+        }
+        function endHover(imageId) {
+            if (!hoverRecorded.has(imageId)) {
+                let hoverTime = new Date().getTime() - hoverStart[imageId];
+                let interaction = { image_id: imageId, action: 'hover_end', hover_time: hoverTime };
+                hoverRecorded.add(imageId);
+                sendInteraction(interaction);
+            }
+        }
+        function sendInteraction(interaction) {
+            fetch('/interact', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(interaction),
+            }).then(response => response.json())
+                .then(data => console.log(data));
+        }
+
+        function comment(imageId) {
+            let commentText = prompt("Enter your comment:");
+            if (commentText) {
+                let interaction = { image_id: imageId, action: 'comment', comment: commentText };
+                sendInteraction(interaction);
+            }
+        }
+    </script>
+    
 </body>
 </html>

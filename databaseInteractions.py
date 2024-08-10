@@ -41,21 +41,54 @@ def init_db():
     db.commit()
     # logging.debug("Database initialized.")
 
+# def save_interaction(data):
+#     db = get_db()
+#     cursor = db.cursor()
+#     # logging.debug(f"Saving interaction: {data}")
+#     cursor.execute('''
+#         INSERT INTO interactions (username, image_id, action, timestamp, hover_time, comment)
+#         VALUES (?, ?, ?, ?, ?, ?)
+#     ''', (data['username'], data['image_id'], data['action'], data['timestamp'], data.get('hover_time'), data.get('comment')))
+#     db.commit()
+#     # logging.debug("Interaction saved.")
+
+
 def save_interaction(data):
     db = get_db()
     cursor = db.cursor()
-    # logging.debug(f"Saving interaction: {data}")
-    cursor.execute('''
-        INSERT INTO interactions (username, image_id, action, timestamp, hover_time, comment)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ''', (data['username'], data['image_id'], data['action'], data['timestamp'], data.get('hover_time'), data.get('comment')))
-    db.commit()
-    # logging.debug("Interaction saved.")
 
-def get_interactions():
+    # check if the interaction is a "like" or "click"
+    if data['action'] in ['like', 'click']:
+        # check if a like or click already exists for this user and image
+        cursor.execute('''
+            SELECT id FROM interactions WHERE username = ? AND image_id = ? AND action = ?
+        ''', (data['username'], data['image_id'], data['action']))
+        result = cursor.fetchone()
+
+        if result:
+            # can update existing like / clicks 
+            cursor.execute('''
+                UPDATE interactions
+                SET timestamp = ?, hover_time = ?, comment = ?
+                WHERE id = ?
+            ''', (data['timestamp'], data.get('hover_time'), data.get('comment'), result[0]))
+        else:
+            cursor.execute('''
+                INSERT INTO interactions (username, image_id, action, timestamp, hover_time, comment)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (data['username'], data['image_id'], data['action'], data['timestamp'], data.get('hover_time'), data.get('comment')))
+    else: #comments can have unlimited, likes only one
+        cursor.execute('''
+            INSERT INTO interactions (username, image_id, action, timestamp, hover_time, comment)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (data['username'], data['image_id'], data['action'], data['timestamp'], data.get('hover_time'), data.get('comment')))
+
+    db.commit()
+
+def get_interactions(username):
     db = get_db()
     cursor = db.cursor()
-    cursor.execute('SELECT * FROM interactions')
+    cursor.execute('SELECT * FROM interactions WHERE username = ?', (username,))
     return cursor.fetchall()
 
 def save_user(username, password):
@@ -90,6 +123,7 @@ def calculate_score(interactions, label_map): #calc scores based on interactions
         'like': 3,
         'comment': 2,
         'hover': 1
+        #clicks have no weight
     }
     # iterate thru interactions for scores of each label
     for interaction in interactions:

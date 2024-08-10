@@ -102,15 +102,17 @@ def recommendations():
     if 'username' not in session:
         return redirect(url_for('login'))
 
-    interactions = databaseInteractions.get_interactions()
+    interactions = databaseInteractions.get_interactions(session['username']) # fetch interactions from DB based on username
+    # print("Interactions fetched from DB:", interactions) 
+    
     label_map = {image['id']: image['labels'].split('; ') for image in images}
 
-    filtered_interactions = [
+    filtered_interactions = [ # filter out interactions with no positive labels
         interaction for interaction in interactions
         if interaction[2] in label_map and label_map[interaction[2]] != ["No Labels"]
     ]
 
-    label_scores = calculate_score(interactions, label_map)
+    label_scores = calculate_score(filtered_interactions, label_map)
     
     # rank images based on cumulative label scores
     sorted_images = sorted(images, key=lambda img: sum(label_scores.get(label, 0) for label in img['labels'].split('; ')), reverse=True)
