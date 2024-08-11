@@ -13,7 +13,7 @@ app.secret_key = 'testKey'
 
 IMAGE_DIR = "data/validation/data"
 
-
+UNSAFE_LABELS = ["nudity", "violence", "blood", "gore", "hate", "hate speech", "racism", "bra", "injury", "wound", "gun", "weapon", "knife", "firearm", "explosive", "bomb", "underwear", "lingerie", "swimsuit", "bikini", "brassiere", "bra", "panties", "thong", "nipple", "breast", "naked", "smoking", "drinking", "alcohol"]
 
 @app.teardown_appcontext
 def close_connection(exception):
@@ -93,14 +93,26 @@ def index():
 
     safe_search = user[4] == 1  # safe_search is the 5th column in the users table
     filtered_images = images
+
     if safe_search:
-        filtered_images = [img for img in images if 'unsafe' not in img['labels'].lower()]
+        filtered_images = [
+            img for img in images 
+            if not any(unsafe in img['labels'].lower() for unsafe in UNSAFE_LABELS)
+        ]
+    # old safe search without UNSAFE_LABELS list, implement later if there is something built in already 
+    # if safe_search:
+    #     filtered_images = [img for img in images if 'unsafe' not in img['labels'].lower()]
     return render_template('index.html', images=filtered_images)
 
 @app.route('/recommendations')
 def recommendations():
     if 'username' not in session:
         return redirect(url_for('login'))
+
+    # fetch settings for user
+    user = databaseInteractions.get_user(session['username'])
+    safe_search = user[4] == 1
+
 
     interactions = databaseInteractions.get_interactions(session['username']) # fetch interactions from DB based on username
     # print("Interactions fetched from DB:", interactions) 
@@ -128,6 +140,12 @@ def recommendations():
     # rank images based on cumulative label scores
     sorted_images = sorted(images, key=lambda img: sum(stored_label_scores.get(label, 0) for label in img['labels'].split('; ')), reverse=True)
     
+    if safe_search:
+        sorted_images = [
+            img for img in sorted_images 
+            if not any(unsafe in img['labels'].lower() for unsafe in UNSAFE_LABELS)
+        ]
+
     return render_template('recommendations.html', images=sorted_images, interactions=filtered_interactions, label_scores=stored_label_scores)
 
 @app.route('/register', methods=['GET', 'POST'])
