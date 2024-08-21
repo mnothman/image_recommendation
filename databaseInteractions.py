@@ -133,6 +133,14 @@ def get_user_label_scores(username):
     cursor.execute('SELECT label, score FROM label_scores WHERE username = ?', (username,))
     return dict(cursor.fetchall())
 
+#clears all recommendations and then recommendations page will be empty until more interactions are tracked
+def clear_user_recommendations(username):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute('DELETE FROM label_scores WHERE username = ?', (username,))
+    cursor.execute('DELETE FROM interactions WHERE username = ?', (username,))
+    db.commit()
+
 
 def get_interactions(username):
     db = get_db()

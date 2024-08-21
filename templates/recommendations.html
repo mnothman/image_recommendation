@@ -1,19 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Your Recommendations</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
+
 <body class="bg-gray-100 text-gray-900">
 
     <header class="bg-blue-600 text-white p-4 flex justify-between items-center shadow-md">
         <h1 class="text-2xl font-bold">Your Recommendations</h1>
         <div>
             <a href="/logout" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">Logout</a>
-            <a href="/settings" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded ml-2">Settings</a>
-            <a href="{{ url_for('index') }}" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded ml-2">Back to Initial Gallery</a>
+            <a href="/settings"
+                class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded ml-2">Settings</a>
+            <a href="{{ url_for('clear_recommendations') }}" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded ml-2">Clear Recommendations</a>
+            <a href="{{ url_for('index') }}"
+                class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded ml-2">Back to Initial
+                Gallery</a>
         </div>
     </header>
 
@@ -22,43 +28,48 @@
         <!-- Displaying User Interactions -->
         <div id="user-interactions" class="mb-8">
             <h2 class="text-xl font-bold mb-4">Your Interactions</h2>
-            <ul class="list-disc pl-5 space-y-2">
+            <ul id="interaction-list" class="list-disc pl-5 space-y-2 max-h-0 overflow-hidden transition-all duration-500">
                 {% for interaction in interactions %}
-                    <li class="bg-white p-4 rounded-lg shadow-md">
-                        Image ID: <span class="font-semibold">{{ interaction[2] }}</span>, 
-                        Action: <span class="font-semibold">{{ interaction[3] }}</span>, 
-                        Timestamp: <span class="font-semibold">{{ interaction[4] }}</span>, 
-                        Hover Time: <span class="font-semibold">{{ interaction[5] }}</span>, 
-                        Comment: <span class="font-semibold">{{ interaction[6] }}</span>
-                    </li>
+                <li class="bg-white p-4 rounded-lg shadow-md">
+                    Image ID: <span class="font-semibold">{{ interaction[2] }}</span>,
+                    Action: <span class="font-semibold">{{ interaction[3] }}</span>,
+                    Timestamp: <span class="font-semibold">{{ interaction[4] }}</span>,
+                    Hover Time: <span class="font-semibold">{{ interaction[5] }}</span>,
+                    Comment: <span class="font-semibold">{{ interaction[6] }}</span>
+                </li>
                 {% endfor %}
             </ul>
+            <button id="toggle-interactions-button" onclick="toggleInteractions()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded mt-4">Show More</button>
         </div>
 
         <!-- Displaying Label Scores -->
         <div id="label-scores" class="mb-8">
             <h2 class="text-xl font-bold mb-4">Your Label Scores</h2>
-            <ul class="list-disc pl-5 space-y-2">
+            <ul id="score-list" class="list-disc pl-5 space-y-2 max-h-0 overflow-hidden transition-all duration-500">
                 {% for label, score in label_scores.items() %}
-                    <li class="bg-white p-4 rounded-lg shadow-md">{{ label }}: <span class="font-semibold">{{ score }}</span></li>
+                <li class="bg-white p-4 rounded-lg shadow-md">{{ label }}: <span class="font-semibold">{{ score
+                        }}</span></li>
                 {% endfor %}
             </ul>
+            <button id="toggle-button" onclick="toggleScores()"
+                class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded mt-4">Show More</button>
         </div>
 
         <!-- Gallery of Recommended Images -->
         <div id="gallery" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {% for image in images %}
             <div class="relative group">
-                <img src="{{ image.url }}" alt="{{ image.id }}" 
-                    onclick="recordInteraction('{{ image.id }}', 'click')" 
-                    onmouseover="startHover('{{ image.id }}')" 
-                    onmouseout="endHover('{{ image.id }}')" 
+                <img src="{{ image.url }}" alt="{{ image.id }}" onclick="recordInteraction('{{ image.id }}', 'click')"
+                    onmouseover="startHover('{{ image.id }}')" onmouseout="endHover('{{ image.id }}')"
                     class="w-full h-auto rounded-lg shadow-lg hover:opacity-75 transition-opacity duration-200">
-                <div class="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 bg-black bg-opacity-50 transition-opacity duration-200 rounded-lg">
+                <div
+                    class="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 bg-black bg-opacity-50 transition-opacity duration-200 rounded-lg">
                     <p class="text-white text-lg font-bold">{{ image.labels }}</p>
                     <div class="mt-2">
-                        <button onclick="recordInteraction('{{ image.id }}', 'like')" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded m-1">Like</button>
-                        <button onclick="comment('{{ image.id }}')" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded m-1">Comment</button>
+                        <button onclick="recordInteraction('{{ image.id }}', 'like')"
+                            class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded m-1">Like</button>
+                        <button onclick="comment('{{ image.id }}')"
+                            class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded m-1">Comment</button>
                     </div>
                 </div>
             </div>
@@ -119,6 +130,38 @@
                 sendInteraction(interaction);
             }
         }
+
+        function toggleScores() {
+            const scoreList = document.getElementById('score-list');
+            const toggleButton = document.getElementById('toggle-button');
+
+            if (scoreList.classList.contains('max-h-0')) {
+                scoreList.classList.remove('max-h-0');
+                scoreList.classList.add('max-h-screen');
+                toggleButton.textContent = 'Show Less';
+            } else {
+                scoreList.classList.remove('max-h-screen');
+                scoreList.classList.add('max-h-0');
+                toggleButton.textContent = 'Show More';
+            }
+        }
+
+        function toggleInteractions() {
+            const interactionList = document.getElementById('interaction-list');
+            const toggleButton = document.getElementById('toggle-interactions-button');
+            
+            if (interactionList.classList.contains('max-h-0')) {
+                interactionList.classList.remove('max-h-0');
+                interactionList.classList.add('max-h-screen');
+                toggleButton.textContent = 'Show Less';
+            } else {
+                interactionList.classList.remove('max-h-screen');
+                interactionList.classList.add('max-h-0');
+                toggleButton.textContent = 'Show More';
+            }
+        }
+
     </script>
 </body>
+
 </html>

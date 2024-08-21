@@ -5,6 +5,7 @@ DOCKER_PORT := 5000
 HOST_DB_PATH := ./data# dir for storing db
 CONTAINER_DB_PATH := /app/data#container dir for storing db
 
+#build, run, stop, remove
 
 # Default target
 .PHONY: all

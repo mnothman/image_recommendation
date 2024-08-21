@@ -116,6 +116,9 @@ def recommendations():
 
     interactions = databaseInteractions.get_interactions(session['username']) # fetch interactions from DB based on username
     # print("Interactions fetched from DB:", interactions) 
+    if not interactions: # stop recommendations.html from displaying deleted interactions with just 0 scores in them
+        return render_template('recommendations.html', images=[], interactions=[], label_scores={})
+
     
     label_map = {image['id']: image['labels'].split('; ') for image in images}
 
@@ -147,6 +150,17 @@ def recommendations():
         ]
 
     return render_template('recommendations.html', images=sorted_images, interactions=filtered_interactions, label_scores=stored_label_scores)
+
+#clears all recommendations and then recommendations page will be empty until more interactions are tracked
+@app.route('/clear_recommendations')
+def clear_recommendations():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    # clear the user's label scores using the clear_user_recommendations function in databaseinteractions.py
+    databaseInteractions.clear_user_recommendations(session['username'])
+
+    return redirect(url_for('recommendations'))
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
