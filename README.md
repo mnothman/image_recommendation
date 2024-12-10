@@ -3,11 +3,28 @@ including interactions such as likes, comments, watch time per image and showing
 
 <br/> folder: image rec final testsqlflask <br/> 
 
+
+steps: <br/>
+1. remove existing dataset and folder (if existing already) <br/>
+rm -rf data/validation/data <br/>
+(may need to elevate permissions to delete)<br/>
+<br/>
+
+2.
 build: <br/>
 make build <br/>
+<br/>
 
+3.
 run: <br/>
 make run <br/>
+
+4. Stop/Remove/Clean:
+make stop
+
+make remove
+
+make clean
 
 home page displays a wide range of content and the users interactions are recorded <br/>
 these recorded interactions are weighted upon their strengths to show content geared toward the user on the image recommendations page <br/>
