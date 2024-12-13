@@ -10,16 +10,18 @@ rm -rf data/validation/data <br/>
 (may need to elevate permissions to delete)<br/>
 <br/>
 
-2.
+2. python ./app.py
+
+3.
 build: <br/>
 make build <br/>
 <br/>
 
-3.
+4.
 run: <br/>
 make run <br/>
 
-4. Stop/Remove/Clean:
+5. Stop/Remove/Clean:
 make stop
 
 make remove
