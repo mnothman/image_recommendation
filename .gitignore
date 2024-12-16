@@ -7,6 +7,9 @@ data/info.json
 # Ignore validation directory created in data
 data/validation/
 
+ml_utils.cpython-311.pyc
+image_embeddings.pkl
+recommender_model.pkl
 
 index2.html
 recommendations2.html

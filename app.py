@@ -7,6 +7,7 @@ from fiftyone import ViewField as F
 import databaseInteractions
 from databaseInteractions import calculate_score
 from cleanup import cleanup_old_images # 1/2 Remove later when hosting 
+from ml_utils import generate_embeddings, load_embeddings, load_model, predict_scores, build_training_data, train_model
 
 app = Flask(__name__)
 app.secret_key = 'testKey'
@@ -79,7 +80,10 @@ if dataset:
             "labels": labels_str
         })
 
-        
+# Create embeddings for images after loading the dataset
+if images:
+    generate_embeddings(IMAGE_DIR, images)
+
 @app.route('/')
 def index():
     if 'username' not in session:
@@ -122,34 +126,110 @@ def recommendations():
     
     label_map = {image['id']: image['labels'].split('; ') for image in images}
 
-    filtered_interactions = [ # filter out interactions with no positive labels
-        interaction for interaction in interactions
-        if interaction[2] in label_map and label_map[interaction[2]] != ["No Labels"]
-    ]
+# # manual label scoring method before machine learning model:
+    # filtered_interactions = [ # filter out interactions with no positive labels
+    #     interaction for interaction in interactions
+    #     if interaction[2] in label_map and label_map[interaction[2]] != ["No Labels"]
+    # ]
 
-    # calculate label scores and update users label preferences
-    label_scores = databaseInteractions.calculate_score(filtered_interactions, label_map)
+    # # calculate label scores and update users label preferences
+    # label_scores = databaseInteractions.calculate_score(filtered_interactions, label_map)
     
-    # retrieve label scores stored in db for the user
-    stored_label_scores = databaseInteractions.get_user_label_scores(session['username'])
+    # # retrieve label scores stored in db for the user
+    # stored_label_scores = databaseInteractions.get_user_label_scores(session['username'])
 
-    # merge in session labels with current stores ones IMPORTANT
-    for label, score in label_scores.items():
-        if label in stored_label_scores:
-            stored_label_scores[label] += score
-        else:
-            stored_label_scores[label] = score
+    # # merge in session labels with current stores ones IMPORTANT
+    # for label, score in label_scores.items():
+    #     if label in stored_label_scores:
+    #         stored_label_scores[label] += score
+    #     else:
+    #         stored_label_scores[label] = score
 
-    # rank images based on cumulative label scores
-    sorted_images = sorted(images, key=lambda img: sum(stored_label_scores.get(label, 0) for label in img['labels'].split('; ')), reverse=True)
+    # # rank images based on cumulative label scores
+    # sorted_images = sorted(images, key=lambda img: sum(stored_label_scores.get(label, 0) for label in img['labels'].split('; ')), reverse=True)
     
+
+
+# Instead of just label scoring, use the trained ML model:
+
+    embeddings = load_embeddings()
+
+    model = load_model()
+
+
+   # If model is not trained yet, fall back to old method
+    if model is None:
+        # old method:
+        filtered_interactions = [
+            interaction for interaction in interactions
+            if interaction[2] in label_map and label_map[interaction[2]] != ["No Labels"]
+        ]
+        label_scores = databaseInteractions.calculate_score(filtered_interactions, label_map)
+        stored_label_scores = databaseInteractions.get_user_label_scores(session['username'])
+        # merge
+        for label, score in label_scores.items():
+            if label in stored_label_scores:
+                stored_label_scores[label] += score
+            else:
+                stored_label_scores[label] = score
+
+        # sort images by label scores
+        sorted_images = sorted(images, key=lambda img: sum(stored_label_scores.get(label, 0) for label in img['labels'].split('; ')), reverse=True)
+    else:
+        # use ML model to predict scores
+        image_ids = [img['id'] for img in images]
+        scores = predict_scores(model, embeddings, image_ids)
+        # pair images with scores
+        image_score_pairs = list(zip(images, scores))
+        # sort by predicted probability of positive engagement
+        sorted_images = sorted(image_score_pairs, key=lambda x: x[1], reverse=True)
+        sorted_images = [x[0] for x in sorted_images]  # extract images
+
+        # no label scores needed when using ML model but still store for debug
+        stored_label_scores = {}
+
+        # print scores for training model
+        scores = predict_scores(model, embeddings, image_ids)
+        print("Predicted scores:", list(zip(image_ids, scores)))
+
     if safe_search:
         sorted_images = [
             img for img in sorted_images 
             if not any(unsafe in img['labels'].lower() for unsafe in UNSAFE_LABELS)
         ]
 
-    return render_template('recommendations.html', images=sorted_images, interactions=filtered_interactions, label_scores=stored_label_scores)
+    # return render_template('recommendations.html', images=sorted_images, interactions=filtered_interactions, label_scores=stored_label_scores)
+    return render_template('recommendations.html', images=sorted_images, interactions=interactions, label_scores=stored_label_scores)
+
+@app.route('/train_model')
+def train_ml_model():
+    if 'username' not in session:
+        return "Please log in to train model."
+    
+    # Fetch all user interactions from all the users to build global model 
+    db = g._databaseInteractions if hasattr(g, '_databaseInteractions') else databaseInteractions.get_db()
+    cursor = db.cursor()
+    cursor.execute('SELECT * FROM interactions')
+    all_interactions = cursor.fetchall()
+
+    label_map = {image['id']: image['labels'].split('; ') for image in images}
+    embeddings = load_embeddings()
+
+    X, y = build_training_data(all_interactions, label_map, embeddings)
+    train_model(X, y)
+    return "Model trained!"
+
+# temporary for model debugging
+@app.route('/debug_model')
+def debug_model():
+    import pickle
+    MODEL_FILE = '/app/data/recommender_model.pkl'
+    try:
+        with open(MODEL_FILE, 'rb') as f:
+            trained_model = pickle.load(f)
+        return f"Coefficients: {trained_model.coef_}, Intercept: {trained_model.intercept_}"
+    except FileNotFoundError:
+        return "Model file not found. Train the model first."
 
 #clears all recommendations and then recommendations page will be empty until more interactions are tracked
 @app.route('/clear_recommendations')
@@ -222,6 +302,7 @@ if __name__ == '__main__':
     with app.app_context():
         databaseInteractions.init_db()
         cleanup_old_images(IMAGE_DIR, threshold_days=2)  # 2/2 Remove later when hosting db
-    fo.launch_app(dataset)
+    # fo.launch_app(dataset)
+    fo.launch_app(dataset, remote=True, address="0.0.0.0", port=5151)
     fo.pprint(dataset.stats(include_media=True))
     app.run(host='0.0.0.0', port=5000)
