@@ -1,5 +1,7 @@
-testing algorithm for user interactions <br/>
-including interactions such as likes, comments, watch time per image and showing more content geared toward the user preference
+A machine learning-driven image recommendation system designed to predict and personalize image suggestions based on user interactions, leveraging advanced embeddings and logistic regression models. <br/><br/>
+
+Testing algorithm for user interactions <br/>
+Including interactions such as likes, comments, watch time per image and showing more content geared toward the user preference
 
 <br/> folder: image rec final testsqlflask <br/> 
 
