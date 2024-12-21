@@ -6,6 +6,7 @@ from PIL import Image
 import pickle
 import numpy as np
 from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import GradientBoostingRegressor
 
 # pretrained resnet50 for embeddings
 # logistic regression for interactions as labels
@@ -73,6 +74,13 @@ def build_training_data(interactions, label_map, embeddings):
     - label_map: dict of image_id -> [labels]
     - embeddings: dict of image_id -> embedding vector
     """
+
+    action_weights = {
+        'like': 1.0,
+        'comment': 0.8,
+        'hover': 0.3
+    }
+
     X = []
     y = []
     for interaction in interactions:
@@ -82,16 +90,25 @@ def build_training_data(interactions, label_map, embeddings):
         if image_id not in embeddings:
             continue
 
-        # Simple binary labels, 1 for positive actions (like, comment, but not hovers for now), and 0 for everything else
-        # Can adjust later if needed
-        positive_actions = ['like', 'comment']
-        label = 1 if action in positive_actions else 0
-        
-        # Ignore hover_time for now since we don't consider it important feature for training. Store as X for now.
-        
+        # Weighted labels for specific action: Like > Comment > Hover
+        label = action_weights.get(action, 0)  # Default to 0 for unknown actions
         emb = embeddings[image_id]
-        X.append(emb)
+
+        hover_time_feature = [hover_time] if hover_time else [0]  # Add hover time, default to 0 if missing
+        user_feature = [hash(username) % 1000]  # Hash username to numeric for modeling
+        combined_features = np.concatenate([emb, hover_time_feature or [0], user_feature or [0]])
+
+        X.append(combined_features)
+
         y.append(label)
+        print("Embedding shape:", emb.shape)
+        # print("Hover time feature:", hover_time_feature)
+        
+        print(f"Feature matrix shape: {X.shape}, Target shape: {y.shape}")
+
+        # Check if empty training data
+        if len(X) == 0 or len(y) == 0:
+            raise ValueError("Training data is empty. Check interactions or embeddings.")
 
     return np.array(X), np.array(y)
 
@@ -99,7 +116,7 @@ def train_model(X, y):
     if len(X) < 10:  # Need enough data
         print("Not enough data to train model.")
         return
-    model = LogisticRegression(max_iter=1000)
+    model = GradientBoostingRegressor()
     model.fit(X, y)
     with open(MODEL_FILE, 'wb') as f:
         pickle.dump(model, f)
@@ -119,10 +136,13 @@ def predict_scores(model, embeddings, image_ids):
     X = []
     for img_id in image_ids:
         if img_id in embeddings:
-            X.append(embeddings[img_id])
+            emb = embeddings[img_id]
+            hover_time_feature = [0]  # Default hover time to 0 for prediction
+            combined_features = np.concatenate([emb, hover_time_feature])
+            X.append(combined_features)
         else:
             # Use zero vector for missing embeddings
-            X.append(np.zeros((2048,)))  # ResNet50 embedding size
+            X.append(np.zeros((2049,)))  # ResNet50 embedding size + hover time
     X = np.array(X)
-    scores = model.predict_proba(X)[:, 1]  # Probability of class=1 which would be positive
+    scores = model.predict(X)  # Predict scores
     return scores

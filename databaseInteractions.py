@@ -5,7 +5,7 @@ from flask import g
 # logging.basicConfig(level=logging.DEBUG)
 
 #creates db in folder data
-DATABASE = '/app/data/interactions.db'
+DATABASE = 'data/interactions.db'
 
 def get_db():
     db = getattr(g, '_databaseInteractions', None)
@@ -81,23 +81,26 @@ def save_interaction(data, label_map):
                 UPDATE interactions
                 SET timestamp = ?, hover_time = ?, comment = ?
                 WHERE id = ?
-            ''', (data['timestamp'], data.get('hover_time'), data.get('comment'), result[0]))
+            ''', (data['timestamp'], data.get('hover_time', 0), data.get('comment'), result[0]))
         else:
             cursor.execute('''
                 INSERT INTO interactions (username, image_id, action, timestamp, hover_time, comment)
                 VALUES (?, ?, ?, ?, ?, ?)
-            ''', (data['username'], data['image_id'], data['action'], data['timestamp'], data.get('hover_time'), data.get('comment')))
+            ''', (data['username'], data['image_id'], data['action'], data['timestamp'], data.get('hover_time', 0), data.get('comment')))
     else: #comments can have unlimited, likes only one
         cursor.execute('''
             INSERT INTO interactions (username, image_id, action, timestamp, hover_time, comment)
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (data['username'], data['image_id'], data['action'], data['timestamp'], data.get('hover_time'), data.get('comment')))
+        ''', (data['username'], data['image_id'], data['action'], data['timestamp'], data.get('hover_time', 0), data.get('comment')))
 
     db.commit()
     # update label scores
     if data['image_id'] in label_map:
         labels = label_map[data['image_id']]
-        update_label_scores(data['username'], labels, data['action'], data.get('hover_time'))
+        update_label_scores(data['username'], labels, data['action'], data.get('hover_time', 0))
+
+    if not data.get('username') or not data.get('image_id'):
+        raise ValueError("Missing username or image_id in interaction data")
 
     db.commit()
     
@@ -107,16 +110,15 @@ def update_label_scores(username, labels, action, hover_time=None):
     cursor = db.cursor()
     
     weights = {
-        'like': 3,
-        'comment': 2,
-        'hover': 1
+    'like': 1.0,
+    'comment': 0.8,
+    'hover': 0.3
     }
     
     score_increment = weights.get(action, 0)
     if action == 'hover' and hover_time:
-        score_increment = weights['hover'] * (hover_time / 1000)
+        score_increment *= hover_time / 1000
 
-    
     for label in labels:
         cursor.execute('''
             INSERT INTO label_scores (username, label, score)
@@ -126,6 +128,8 @@ def update_label_scores(username, labels, action, hover_time=None):
         ''', (username, label, score_increment))
     
     db.commit()
+
+
 # fetch label scores when generating recommendations
 def get_user_label_scores(username):
     db = get_db()
@@ -177,11 +181,11 @@ def calculate_score(interactions, label_map): #calc scores based on interactions
     # Return is dictionary with labels as keys and their calculated scores as values.
     label_scores = {}
     weights = {
-        'like': 3,
-        'comment': 2,
-        'hover': 1
-        #clicks have no weight
+        'like': 1.0,
+        'comment': 0.8,
+        'hover': 0.3
     }
+
     # iterate thru interactions for scores of each label
     for interaction in interactions:
         image_id = interaction[2]

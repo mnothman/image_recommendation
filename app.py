@@ -32,57 +32,98 @@ print("Downloading dataset...")
 #https://docs.voxel51.com/user_guide/using_datasets.html#labels
 #https://docs.voxel51.com/user_guide/using_datasets.html#metadata
 # use fiftyone
-try:
-    dataset = foz.load_zoo_dataset(
-        "open-images-v7",
-        split="validation",
-        dataset_dir="data",
-        max_samples=100,  # limit for testing
-        label_types=["classifications"],
-        shuffle=True,
-    )
-except KeyError as e:
-    print(f"Error downloading dataset: {e}")
-    dataset = None
 
-#https://stackoverflow.com/questions/70274971/exclude-certain-classes-when-loading-dataset-with-fiftyone
-
+dataset = None
 images = []
 
+if __name__ == '__main__':
+    print("Downloading dataset...")
+    try:
+        dataset = foz.load_zoo_dataset(
+            "open-images-v7",
+            split="validation",
+            dataset_dir="data",
+            max_samples=100,
+            label_types=["classifications"],
+            shuffle=True,
+        )
+    except KeyError as e:
+        print(f"Error downloading dataset: {e}")
 
-# neg_view = dataset.filter_labels("negative_labels", F("label")=="Person")
-# print("negative view count:", neg_view.count())
-# # print("neg view count classifications:", neg_view.values("classifications"))
-# print("all neg views: ", neg_view)
+    if dataset:
+        selected_samples = dataset.take(50)
 
-if dataset:
-    selected_samples = dataset.take(50)
+        for sample in selected_samples:
+            image_path = sample.filepath
+            image_filename = os.path.basename(image_path)
+            labels = []
 
-    # # prepare images for rendering
-    for sample in selected_samples:
-        image_path = sample.filepath
-        image_filename = os.path.basename(image_path)
+            if sample.has_field("positive_labels") and sample.positive_labels is not None:
+                for classification in sample.positive_labels.classifications:
+                    labels.append(classification.label)
 
-        labels = []
+            labels_str = "; ".join(labels) if labels else "No Labels"
+            images.append({
+                "id": sample.id,
+                "url": f"/images/{image_filename}",
+                "labels": labels_str
+            })
 
-        if sample.has_field("positive_labels") and sample.positive_labels is not None:
-            for classification in sample.positive_labels.classifications:
-                labels.append(classification.label)
+        # Create embeddings for images
+        if images:
+            generate_embeddings(IMAGE_DIR, images)
 
-        labels_str = "; ".join(labels) if labels else "No Labels"
+# try:
+#     dataset = foz.load_zoo_dataset(
+#         "open-images-v7",
+#         split="validation",
+#         dataset_dir="data",
+#         max_samples=100,  # limit for testing
+#         label_types=["classifications"],
+#         shuffle=True,
+#     )
+# except KeyError as e:
+#     print(f"Error downloading dataset: {e}")
+#     dataset = None
 
-        print(f"Sample ID: {sample.id}, Positive Labels: {labels_str}, Image Path: {image_path}")
+# #https://stackoverflow.com/questions/70274971/exclude-certain-classes-when-loading-dataset-with-fiftyone
+
+# images = []
 
 
-        images.append({
-            "id": sample.id,
-            "url": f"/images/{image_filename}",
-            "labels": labels_str
-        })
+# # neg_view = dataset.filter_labels("negative_labels", F("label")=="Person")
+# # print("negative view count:", neg_view.count())
+# # # print("neg view count classifications:", neg_view.values("classifications"))
+# # print("all neg views: ", neg_view)
 
-# Create embeddings for images after loading the dataset
-if images:
-    generate_embeddings(IMAGE_DIR, images)
+# if dataset:
+#     selected_samples = dataset.take(50)
+
+#     # # prepare images for rendering
+#     for sample in selected_samples:
+#         image_path = sample.filepath
+#         image_filename = os.path.basename(image_path)
+
+#         labels = []
+
+#         if sample.has_field("positive_labels") and sample.positive_labels is not None:
+#             for classification in sample.positive_labels.classifications:
+#                 labels.append(classification.label)
+
+#         labels_str = "; ".join(labels) if labels else "No Labels"
+
+#         print(f"Sample ID: {sample.id}, Positive Labels: {labels_str}, Image Path: {image_path}")
+
+
+#         images.append({
+#             "id": sample.id,
+#             "url": f"/images/{image_filename}",
+#             "labels": labels_str
+#         })
+
+# # Create embeddings for images after loading the dataset
+# if images:
+#     generate_embeddings(IMAGE_DIR, images)
 
 @app.route('/')
 def index():
@@ -114,48 +155,30 @@ def recommendations():
         return redirect(url_for('login'))
 
     # fetch settings for user
-    user = databaseInteractions.get_user(session['username'])
+
+    username = session['username']
+    user = databaseInteractions.get_user(username)
+    if not user:
+        session.pop('username', None)
+        return redirect(url_for('login'))
+    
     safe_search = user[4] == 1
+    user_label_scores = databaseInteractions.get_user_label_scores(username) or {}
 
-
-    interactions = databaseInteractions.get_interactions(session['username']) # fetch interactions from DB based on username
+    interactions = databaseInteractions.get_interactions(username)
     # print("Interactions fetched from DB:", interactions) 
     if not interactions: # stop recommendations.html from displaying deleted interactions with just 0 scores in them
         return render_template('recommendations.html', images=[], interactions=[], label_scores={})
 
-    
     label_map = {image['id']: image['labels'].split('; ') for image in images}
-
-# # manual label scoring method before machine learning model:
-    # filtered_interactions = [ # filter out interactions with no positive labels
-    #     interaction for interaction in interactions
-    #     if interaction[2] in label_map and label_map[interaction[2]] != ["No Labels"]
-    # ]
-
-    # # calculate label scores and update users label preferences
-    # label_scores = databaseInteractions.calculate_score(filtered_interactions, label_map)
-    
-    # # retrieve label scores stored in db for the user
-    # stored_label_scores = databaseInteractions.get_user_label_scores(session['username'])
-
-    # # merge in session labels with current stores ones IMPORTANT
-    # for label, score in label_scores.items():
-    #     if label in stored_label_scores:
-    #         stored_label_scores[label] += score
-    #     else:
-    #         stored_label_scores[label] = score
-
-    # # rank images based on cumulative label scores
-    # sorted_images = sorted(images, key=lambda img: sum(stored_label_scores.get(label, 0) for label in img['labels'].split('; ')), reverse=True)
-    
-
-
-# Instead of just label scoring, use the trained ML model:
-
     embeddings = load_embeddings()
-
     model = load_model()
 
+
+    if not embeddings or model is None:
+        return render_template('recommendations.html', images=[], interactions=[], label_scores={})
+    
+    # Instead of just label scoring, use the trained ML model:
 
    # If model is not trained yet, fall back to old method
     if model is None:
@@ -165,59 +188,65 @@ def recommendations():
             if interaction[2] in label_map and label_map[interaction[2]] != ["No Labels"]
         ]
         label_scores = databaseInteractions.calculate_score(filtered_interactions, label_map)
-        stored_label_scores = databaseInteractions.get_user_label_scores(session['username'])
-        # merge
-        for label, score in label_scores.items():
-            if label in stored_label_scores:
-                stored_label_scores[label] += score
-            else:
-                stored_label_scores[label] = score
+        sorted_images = sorted(
+            images,
+            key=lambda img: sum(label_scores.get(label, 0) for label in img['labels'].split('; ')),
+            reverse=True
+        )
 
-        # sort images by label scores
-        sorted_images = sorted(images, key=lambda img: sum(stored_label_scores.get(label, 0) for label in img['labels'].split('; ')), reverse=True)
     else:
-        # use ML model to predict scores
+        # Use ML model for recommendations
         image_ids = [img['id'] for img in images]
         scores = predict_scores(model, embeddings, image_ids)
-        # pair images with scores
-        image_score_pairs = list(zip(images, scores))
-        # sort by predicted probability of positive engagement
-        sorted_images = sorted(image_score_pairs, key=lambda x: x[1], reverse=True)
-        sorted_images = [x[0] for x in sorted_images]  # extract images
+        user_label_scores = databaseInteractions.get_user_label_scores(username) or {}
 
-        # no label scores needed when using ML model but still store for debug
-        stored_label_scores = {}
+        # Combine ML scores with user label scores
+        personalized_scores = []
+        for img, score in zip(images, scores):
+            label_score = sum(user_label_scores.get(label, 0) for label in img['labels'].split('; '))
+            final_score = score + label_score  # Combine ML and label scores
+            personalized_scores.append((img, final_score))
 
-        # print scores for training model
-        scores = predict_scores(model, embeddings, image_ids)
-        print("Predicted scores:", list(zip(image_ids, scores)))
+        # Sort images by the combined score
+        sorted_images = sorted(personalized_scores, key=lambda x: x[1], reverse=True)
+        sorted_images = [x[0] for x in sorted_images]  # Extract the images only
+
 
     if safe_search:
         sorted_images = [
-            img for img in sorted_images 
+            img for img in sorted_images
             if not any(unsafe in img['labels'].lower() for unsafe in UNSAFE_LABELS)
         ]
 
-    # return render_template('recommendations.html', images=sorted_images, interactions=filtered_interactions, label_scores=stored_label_scores)
-    return render_template('recommendations.html', images=sorted_images, interactions=interactions, label_scores=stored_label_scores)
+    print("Interactions:", interactions)
+    print("User Label Scores:", user_label_scores)
+    print("Embeddings loaded:", bool(embeddings))
+    print("Model loaded:", model is not None)
+
+    return render_template(
+        'recommendations.html',
+        images=sorted_images,
+        interactions=interactions,
+        label_scores=user_label_scores
+    )
 
 @app.route('/train_model')
 def train_ml_model():
     if 'username' not in session:
         return "Please log in to train model."
     
-    # Fetch all user interactions from all the users to build global model 
+    username = session['username']
     db = g._databaseInteractions if hasattr(g, '_databaseInteractions') else databaseInteractions.get_db()
     cursor = db.cursor()
-    cursor.execute('SELECT * FROM interactions')
-    all_interactions = cursor.fetchall()
+    cursor.execute('SELECT * FROM interactions WHERE username = ?', (username,))
+    user_interactions = cursor.fetchall()
 
     label_map = {image['id']: image['labels'].split('; ') for image in images}
     embeddings = load_embeddings()
 
-    X, y = build_training_data(all_interactions, label_map, embeddings)
+    X, y = build_training_data(user_interactions, label_map, embeddings)
     train_model(X, y)
-    return "Model trained!"
+    return f"Model trained for user: {username}"
 
 # temporary for model debugging
 @app.route('/debug_model')
@@ -238,7 +267,9 @@ def clear_recommendations():
         return redirect(url_for('login'))
 
     # clear the user's label scores using the clear_user_recommendations function in databaseinteractions.py
-    databaseInteractions.clear_user_recommendations(session['username'])
+    # databaseInteractions.clear_user_recommendations(session['username'])
+    username = session['username']
+    databaseInteractions.clear_user_recommendations(username)
 
     return redirect(url_for('recommendations'))
 
@@ -297,6 +328,21 @@ def settings():
         return redirect(url_for('index'))
     user = databaseInteractions.get_user(session['username'])
     return render_template('settings.html', safe_search=user[4], preferences=user[3])
+
+@app.route('/debug_user')
+def debug_user():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+
+    username = session['username']
+    interactions = databaseInteractions.get_interactions(username)
+    label_scores = databaseInteractions.get_user_label_scores(username)
+
+    return jsonify({
+        "username": username,
+        "interactions": interactions,
+        "label_scores": label_scores
+    })
 
 if __name__ == '__main__':
     with app.app_context():
